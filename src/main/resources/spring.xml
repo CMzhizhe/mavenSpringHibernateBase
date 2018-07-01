@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>  
+<beans xmlns="http://www.springframework.org/schema/beans"  
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"  
+    xmlns:aop="http://www.springframework.org/schema/aop"  
+    xmlns:context="http://www.springframework.org/schema/context"  
+    xmlns:tx="http://www.springframework.org/schema/tx"  
+    xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.2.xsd  
+        http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.0.xsd  
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.0.xsd  
+        http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.0.xsd">  
+      
+    <!-- 添加注解支持 -->  
+    <context:annotation-config />  
+      
+    <!-- 扫描server,dao层包 -->  
+    <context:component-scan base-package="com.gao.service,com.gao.dao"/>  
+  
+    <!-- 导入jdbc数据库连接信息的配置文件 -->  
+    <context:property-placeholder location="classpath:config.properties" />  
+      
+    <!-- 配置数据源 c3p0 -->  
+    <bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">  
+         <!-- 基本信息 -->
+        <property name="jdbcUrl" value="${jdbcUrl}"></property>
+        <property name="driverClass" value="${driverClassName}"></property>
+        <property name="user" value="${jdbc_username}"></property>
+        <property name="password" value="${jdbc_password}"></property>
+        <!-- 其他配置 -->
+        <!--连接池中保留的最大连接数。Default: 15 -->
+        <property name="maxPoolSize" value="50"></property>
+        <!--当连接池中的连接耗尽的时候c3p0一次同时获取的连接数。Default: 10 -->
+        <property name="acquireIncrement" value="10"></property>
+        <!-- 控制数据源内加载的PreparedStatements数量。如果maxStatements与maxStatementsPerConnection均为0，则缓存被关闭。Default:
+            0 -->
+        <property name="maxStatements" value="8"></property>
+        <!-- maxStatementsPerConnection定义了连接池内单个连接所拥有的最大缓存statements数。Default:
+            0 -->
+        <property name="maxStatementsPerConnection" value="10"></property>
+        <!--最大空闲时间,300秒内未使用则连接被丢弃。若为0则永不丢弃。Default: 0 -->
+        <property name="maxIdleTime" value="120"></property>
+    </bean>  
+      
+    <!-- 配置hibernate的sessionFactory,并让spring的ioc进行管理 -->  
+    <bean id="sessionFactory" class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">  
+        <!-- 配置数据源属性 -->  
+        <property name="dataSource" ref="dataSource"></property>  
+          
+        <!-- 引入hibernate的属性配置文件 -->  
+        <property name="configLocation" value="classpath:hibernate.cfg.xml"></property>  
+          
+        <!-- 扫描实体类,将其映射为具体的数据库表 -->  
+        <property name="packagesToScan" value="com.gao.model"></property>  
+        
+          <!-- 自动扫描hbm方式配置的hibernate文件和.hbm文件 -->
+        <!--<property name="mappingDirectoryLocations">
+           <list>
+                <value>classpath:com/aode/domain</value>
+            </list>
+        </property>-->
+    </bean>  
+      
+    <!-- 配置事务管理,采用Hibernate4 -->  
+    <bean id="transactionManager" class="org.springframework.orm.hibernate4.HibernateTransactionManager">  
+        <property name="sessionFactory" ref="sessionFactory"></property>  
+    </bean>  
+      
+    <!-- 配置事务传播属性,注意需要有事务管理(transaction-manager) : 其实就是事务(方法)发生的时间和要发生的故事-->  
+    <tx:advice id="txAdvice" transaction-manager="transactionManager">  
+        <tx:attributes>  
+            <tx:method name="add*" propagation="REQUIRED"/>  
+            <tx:method name="save*" propagation="REQUIRED"/>  
+            <tx:method name="insert*" propagation="REQUIRED"/>  
+            <tx:method name="delete*" propagation="REQUIRED"/>  
+            <tx:method name="update*" propagation="REQUIRED"/>  
+            <tx:method name="find*" propagation="REQUIRED" read-only="true"/>  
+            <tx:method name="load*" propagation="REQUIRED" read-only="true"/>  
+            <tx:method name="query*" propagation="REQUIRED" read-only="true"/>  
+            <tx:method name="*" propagation="REQUIRED"/>  
+        </tx:attributes>  
+    </tx:advice>  
+      
+    <!-- 配置事务切面,并关联事务的传播属性: 其实就是一个方法,只是这个方法是事务性的事务,它的发生不是随机的,而是具有时间,地点和该发生的故事的 -->  
+    <aop:config>  
+          
+        <!-- 切点: 其实就是告诉了地点 -->  
+        <aop:pointcut expression="execution(* com.gao.service.*.*(..))" id="pointCut"/>  
+          
+        <!-- 要执行那样的事务,那当然得需要通知,通知它什么时候发生,在哪里发生,发生啥事 -->  
+        <aop:advisor advice-ref="txAdvice" pointcut-ref="pointCut"/>  
+    </aop:config>  
+      
+</beans>  
